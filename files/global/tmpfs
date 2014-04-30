@@ -1,10 +1,10 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:	     	tmpfs mount          
+# Provides:         tmpfs mount          
 # Required-Start:   mountall
 # Required-Stop: 
-# Default-Start: 	S
-# Default-Stop: 	0 6
+# Default-Start:   S
+# Default-Stop:   0 6
 # Short-Description: Mount directories in tmpfs
 # Description: This initscript can bind directories in a tmpfs ramdisk, the
 #              primary goal is to allow laptop users to let the hard-disk
@@ -34,49 +34,50 @@ NAME="tmpfs.sh"
 [ ! -d "/dev/shm" ] && echo "Enable tmpfs in the kernel" >&2 && exit 1
 
 do_start() {
-	# Prepare mount point
-	[ -d "$MNT_TMPFS" ] || mkdir "$MNT_TMPFS"
+  # Prepare mount point
+  [ -d "$MNT_TMPFS" ] || mkdir -p "$MNT_TMPFS"
 
-	# Mount options
-	MNT_OPTS=${MNT_OPTS:-"rw,nodev,nosuid"}
-	[ -n "$SHM_SIZE" ] && MNT_OPTS="$MNT_OPTS",size=$SHM_SIZE
+  # Mount options
+  MNT_OPTS=${MNT_OPTS:-"rw,nodev,nosuid"}
+  [ -n "$SHM_SIZE" ] && MNT_OPTS="$MNT_OPTS",size=$SHM_SIZE
 
-	grep -q $MNT_TMPFS /proc/mounts || {
-		mount -t tmpfs -o "$MNT_OPTS" tmpfs "$MNT_TMPFS"
-	}
+  grep -q $MNT_TMPFS /proc/mounts || {
+    mount -t tmpfs -o "$MNT_OPTS" tmpfs "$MNT_TMPFS"
+  }
 
-	for MY_DIR in $DIRS; do
-		MY_TMPFS="$MNT_TMPFS/$MY_DIR"
-		[ -d "$MY_TMPFS" ] || mkdir -p "$MY_TMPFS"
+  for MY_DIR in $DIRS; do
+    MY_TMPFS="$MNT_TMPFS/$MY_DIR"
+    [ -d "$MY_TMPFS" ] || mkdir -p "$MY_TMPFS"
+    [ -d "$MY_DIR" ] || mkdir -p "$MY_DIR"
 
-		# avoid duplicate mounts
-		awk '/tmpfs/ {print $2}' /proc/mounts | grep -q "$MY_DIR" || {
-			echo "Mounting ${MY_DIR}: "
-			mount --bind $OPTS_TMPFS_QUIET "$MY_TMPFS" "$MY_DIR" -o "$OPTS_TMPFS"
-			[ $? = 0 ] && echo "OK" || echo "Failed"
-		}
+    # avoid duplicate mounts
+    awk '/tmpfs/ {print $2}' /proc/mounts | grep -q "$MY_DIR" || {
+      echo "Mounting ${MY_DIR}: "
+      mount --bind $OPTS_TMPFS_QUIET "$MY_TMPFS" "$MY_DIR" -o "$OPTS_TMPFS"
+      [ $? = 0 ] && echo "OK" || echo "Failed"
+    }
 
-		# special cases handled here, using "case" allows more flexibility
-		case $MY_DIR in
-		/tmp|/var/tmp)
-			mount -o,remount,nodev,nosuid $MY_DIR
-			chmod 1777 $MY_DIR
-			;;
-	 /var/log)
-			touch ${MY_DIR}/{lastlog,wtmp}
-			chgrp utmp ${MY_DIR}/lastlog
-			chmod 0644 ${MY_DIR}/{lastlog,wtmp}
-			;;
-	 /var/run)
-			mount -o,remount,nodev,nosuid,noexec $MY_DIR
-			chmod 1777 /var/run
-			[ -d ${MY_DIR}/screen ] || mkdir -m 0777 ${MY_DIR}/screen
-			touch ${MY_DIR}/utmp
-			chgrp utmp ${MY_DIR}/utmp
-			chmod 0644 ${MY_DIR}/utmp
-			;;
-		esac
-	done
+    # special cases handled here, using "case" allows more flexibility
+    case $MY_DIR in
+    /tmp|/var/tmp)
+      mount -o,remount,nodev,nosuid $MY_DIR
+      chmod 1777 $MY_DIR
+      ;;
+    /var/log)
+      touch ${MY_DIR}/{lastlog,wtmp}
+      chgrp utmp ${MY_DIR}/lastlog
+      chmod 0644 ${MY_DIR}/{lastlog,wtmp}
+      ;;
+    /var/run)
+      mount -o,remount,nodev,nosuid,noexec $MY_DIR
+      chmod 1777 /var/run
+      [ -d ${MY_DIR}/screen ] || mkdir -m 0777 ${MY_DIR}/screen
+      touch ${MY_DIR}/utmp
+      chgrp utmp ${MY_DIR}/utmp
+      chmod 0644 ${MY_DIR}/utmp
+      ;;
+    esac
+  done
 }
 
 case "$1" in
